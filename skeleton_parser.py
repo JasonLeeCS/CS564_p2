@@ -131,12 +131,8 @@ def parseJson(json_file):
                     })
           
             for category in item['Category']:
-                if category not in categoryDict:
-                    categoryDict[category] = {
-                        'Items': [item['ItemID']], 
-                        'Category': quoteChecker(category)
-                    }
-                elif category in categoryDict and item['ItemID'] not in categoryDict[category]['Items']:
+                categoryDict.setdefault(category, {'Items': [], 'Category': quoteChecker(category)})
+                if item['ItemID'] not in categoryDict[category]['Items']:
                     categoryDict[category]['Items'].append(item['ItemID'])
                     
 def writeUsers():
