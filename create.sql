@@ -17,14 +17,14 @@ create table Category(
 );
 create table Item(
     itemID int NOT NULL, 
-    ends time NOT NULL, 
-    first_bid float NOT NULL, 
     name varchar(255) NOT NULL, 
-    started time NOT NULL, 
-    number_of_bids int NOT NULL, 
     currently float NOT NULL, 
-    userID varchar(255) NOT NULL, 
+    first_bid float NOT NULL, 
+    number_of_bids int NOT NULL, 
+    started time NOT NULL, 
+    ends time NOT NULL, 
     description varchar(255),
+    userID varchar(255) NOT NULL, 
     primary key(itemID),
     foreign key(userID) references user(userID)
 );

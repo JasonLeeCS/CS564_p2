@@ -1,3 +1,4 @@
+
 """
 FILE: skeleton_parser.py
 ------------------
@@ -28,6 +29,11 @@ from json import loads
 from re import sub
 
 columnSeparator = "|"
+
+itemEntity = {}
+userEntity = {}
+bidEntity = []
+categoryEntity = {};
 
 # Dictionary of months used for date transformation
 MONTHS = {'Jan':'01','Feb':'02','Mar':'03','Apr':'04','May':'05','Jun':'06',\
@@ -71,15 +77,10 @@ def transformDollar(money):
 Escapes quotation marks for strings
 """
 
-itemEntity = {}
-userEntity = {}
-bidEntity = []
-categoryEntity = {}
-
-def escapeDQ(str):
-    if (str == None):
+def escpapeDQ(word):
+    if (word == None):
         return '"NULL"'
-    return '"'+str.replace('"', '""')+'"'
+    return '\"'+word.replace('\"', '\"\"')+'\"'
 
 """
 Parses a single json file. Currently, there's a loop that iterates over each
@@ -96,23 +97,23 @@ def parseJson(json_file):
             if (item['ItemID'] not in itemEntity):
                 itemEntity[item['ItemID']] = {  
                     'ItemID': item['ItemID'], 
-                    'Name': escapeDQ(item['Name']), 
+                    'Name': escpapeDQ(item['Name']), 
                     'Currently': transformDollar(item['Currently']), 
                     'First_Bid': transformDollar(item['First_Bid']), 
                     'Number_of_Bids': item['Number_of_Bids'], 
                     'Started': transformDttm(item['Started']), 
                     'Ends': transformDttm(item['Ends']), 
-                    'Description': escapeDQ(item['Description']), 
+                    'Description': escpapeDQ(item['Description']), 
                     'UserID': item['Seller']['UserID']
                 }
             
             # Create User Entity using Seller Information
             if (item['Seller']['UserID'] not in userEntity):
                 userEntity[item['Seller']['UserID']] = {
-                    'UserID': escapeDQ(item['Seller']['UserID']), 
-                    'Rating': item['Seller']['Rating'], 
-                    'Location': escapeDQ(item['Location']), 
-                    'Country': escapeDQ(item['Country'])
+                    'Rating': item['Seller']['Rating'],
+                    'UserID': escpapeDQ(item['Seller']['UserID']),
+                    'Location': escpapeDQ(item['Location']), 
+                    'Country': escpapeDQ(item['Country'])
                 }
 
             # Traverse through bids for Sellers and Bid information
@@ -129,18 +130,18 @@ def parseJson(json_file):
                         if 'Country' in bidder:
                             bidder_country = bidder['Country']
                         userEntity[bidder['UserID']] = {
-                            'UserID': escapeDQ(bidder['UserID']), 
-                            'Rating': bidder['Rating'], 
-                            'Location': escapeDQ(bidder_location), 
-                            'Country': escapeDQ(bidder_country)
+                            'Rating': bidder['Rating'],
+                            'UserID': escpapeDQ(bidder['UserID']), 
+                            'Location': escpapeDQ(bidder_location), 
+                            'Country': escpapeDQ(bidder_country)
                         }
 
                     # Create Bid Entity
                     bidEntity.append({
                         'ItemID': item['ItemID'], 
+                        'Amount': transformDollar(bid['Bid']['Amount']),
                         'UserID': bidder['UserID'], 
-                        'Time': transformDttm(bid['Bid']['Time']), 
-                        'Amount': transformDollar(bid['Bid']['Amount'])
+                        'Time': transformDttm(bid['Bid']['Time'])
                     })
             
             # Create Category Entity
@@ -149,7 +150,7 @@ def parseJson(json_file):
                 if (category not in categoryEntity):
                     categoryEntity[category] = {
                         'Items': [item['ItemID']], 
-                        'Category': escapeDQ(category)
+                        'Category': escpapeDQ(category)
                     }
                 elif (category in categoryEntity and item['ItemID'] not in categoryEntity[category]['Items']):
                     categoryEntity[category]['Items'].append(item['ItemID'])
@@ -186,23 +187,23 @@ def main(argv):
     # Write User Entity to users.dat
     for id, attributes in userEntity.items():
         line = ''
-        for a in attributes.values():
-            line += str(a)+'|'
+        for a, j in attributes.items():
+            line += str(j)+'|'
         usersFile.write(line[:-1]+'\n')
 
     # Write Item Entity to items.dat
     for id, attributes in itemEntity.items():
         line = ''
-        for a in attributes.values():
-            line += str(a)+'|'
+        for a, j in attributes.items():
+            line += str(j)+'|'
         itemsFile.write(line[:-1]+'\n')
 
 
     # Write Bid Entity to bids.dat
     for attributes in bidEntity:
         line = ''
-        for a in attributes.values():
-            line += str(a)+'|'
+        for a, j in attributes.items():
+            line += str(j)+'|'
         bidsFile.write(line[:-1]+'\n')
 
     # Write Category Entity to category.dat
