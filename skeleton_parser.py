@@ -30,11 +30,6 @@ from re import sub
 
 columnSeparator = "|"
 
-itemEntity = {}
-userEntity = {}
-bidEntity = []
-categoryEntity = {};
-
 # Dictionary of months used for date transformation
 MONTHS = {'Jan':'01','Feb':'02','Mar':'03','Apr':'04','May':'05','Jun':'06',\
         'Jul':'07','Aug':'08','Sep':'09','Oct':'10','Nov':'11','Dec':'12'}
@@ -73,14 +68,15 @@ def transformDollar(money):
         return money
     return sub(r'[^\d.]', '', money)
 
-"""
-Escapes quotation marks for strings
-"""
+itemDict = {}
+userDict = {}
+bidArr = []
+categoryDict = {}
 
-def escpapeDQ(word):
-    if (word == None):
-        return '"NULL"'
-    return '\"'+word.replace('\"', '\"\"')+'\"'
+def quoteChecker(word):
+    if (word != None):
+        return '\"'+word.replace('\"', '\"\"')+'\"'      
+    return '"NULL"'
 
 """
 Parses a single json file. Currently, there's a loop that iterates over each
@@ -88,73 +84,102 @@ item in the data set. Your job is to extend this functionality to create all
 of the necessary SQL tables for your database.
 """
 def parseJson(json_file):
-
     with open(json_file, 'r') as f:
-        items = loads(f.read())['Items'] # creates a Python dictionary of Items for the supplied json file
+        items = loads(f.read())['Items'] 
         for item in items:
-            # hello
-            # Create Item Entity
-            if (item['ItemID'] not in itemEntity):
-                itemEntity[item['ItemID']] = {  
+            if item['ItemID'] not in itemDict:
+                itemDict[item['ItemID']] = {  
                     'ItemID': item['ItemID'], 
-                    'Name': escpapeDQ(item['Name']), 
+                    'Name': quoteChecker(item['Name']), 
                     'Currently': transformDollar(item['Currently']), 
                     'First_Bid': transformDollar(item['First_Bid']), 
                     'Number_of_Bids': item['Number_of_Bids'], 
                     'Started': transformDttm(item['Started']), 
                     'Ends': transformDttm(item['Ends']), 
-                    'Description': escpapeDQ(item['Description']), 
+                    'Description': quoteChecker(item['Description']), 
                     'UserID': item['Seller']['UserID']
-                }
-            
-            # Create User Entity using Seller Information
-            if (item['Seller']['UserID'] not in userEntity):
-                userEntity[item['Seller']['UserID']] = {
+                }          
+            if item['Seller']['UserID'] not in userDict:
+                userDict[item['Seller']['UserID']] = {
                     'Rating': item['Seller']['Rating'],
-                    'UserID': escpapeDQ(item['Seller']['UserID']),
-                    'Location': escpapeDQ(item['Location']), 
-                    'Country': escpapeDQ(item['Country'])
+                    'UserID': quoteChecker(item['Seller']['UserID']),
+                    'Location': quoteChecker(item['Location']), 
+                    'Country': quoteChecker(item['Country'])
                 }
 
-            # Traverse through bids for Sellers and Bid information
-            if (item['Bids']):
+            if item['Bids']:
                 for bid in item['Bids']:
                     bidder = bid['Bid']['Bidder']
-
-                    # Create User Entity using Bidder information
-                    if (bidder['UserID'] not in userEntity):
+                    if bidder['UserID'] not in userDict:
                         bidder_location = 'NULL'
                         bidder_country = 'NULL'
                         if 'Location' in bidder:
                             bidder_location = bidder['Location']
                         if 'Country' in bidder:
                             bidder_country = bidder['Country']
-                        userEntity[bidder['UserID']] = {
+                        userDict[bidder['UserID']] = {
                             'Rating': bidder['Rating'],
-                            'UserID': escpapeDQ(bidder['UserID']), 
-                            'Location': escpapeDQ(bidder_location), 
-                            'Country': escpapeDQ(bidder_country)
+                            'UserID': quoteChecker(bidder['UserID']), 
+                            'Location': quoteChecker(bidder_location), 
+                            'Country': quoteChecker(bidder_country)
                         }
-
-                    # Create Bid Entity
-                    bidEntity.append({
+                    bidArr.append({
                         'ItemID': item['ItemID'], 
                         'Amount': transformDollar(bid['Bid']['Amount']),
                         'UserID': bidder['UserID'], 
                         'Time': transformDttm(bid['Bid']['Time'])
                     })
-            
-            # Create Category Entity
+          
             for category in item['Category']:
-                # Check whether category exists and create category if not exists
-                if (category not in categoryEntity):
-                    categoryEntity[category] = {
+                if category not in categoryDict:
+                    categoryDict[category] = {
                         'Items': [item['ItemID']], 
-                        'Category': escpapeDQ(category)
+                        'Category': quoteChecker(category)
                     }
-                elif (category in categoryEntity and item['ItemID'] not in categoryEntity[category]['Items']):
-                    categoryEntity[category]['Items'].append(item['ItemID'])
+                elif category in categoryDict and item['ItemID'] not in categoryDict[category]['Items']:
+                    categoryDict[category]['Items'].append(item['ItemID'])
                     
+def writeUsers():
+    open('users.dat', 'w').close()
+    usersOutput = open('users.dat', 'a')
+    for id, attributes in userDict.items():
+        line = ""
+        for a, j in attributes.items():
+            line += str(j)+'|'
+        usersOutput.write(line[:-1]+'\n')
+    usersOutput.close()
+
+def writeItems():
+    open('items.dat', 'w').close()
+    itemsOutput= open('items.dat', 'a')
+    for id, attributes in itemDict.items():
+        line = ""
+        for a, j in attributes.items():
+            line += str(j)+'|'
+        itemsOutput.write(line[:-1]+'\n')
+    itemsOutput.close()
+
+def writeBids():
+    open('bids.dat', 'w').close()
+    bidsOutput= open('bids.dat', 'a')
+    for attributes in bidArr:
+        line = ""
+        for a, j in attributes.items():
+            line += str(j)+'|'
+        bidsOutput.write(line[:-1]+'\n')
+    bidsOutput.close()
+
+def writeCategories():
+    open('categories.dat', 'w').close()
+    categoriesOutput= open('categories.dat', 'a')
+    for category in categoryDict:
+        line = ""
+        for item in categoryDict[category]['Items']:
+            line += str(item)+'|'+str(category)+'\n'
+        categoriesOutput.write(line)
+    categoriesOutput.close()
+       
+    
 
 """
 Loops through each json files provided on the command line and passes each file
@@ -164,59 +189,16 @@ def main(argv):
     if len(argv) < 2:
         print >> sys.stderr, 'Usage: python skeleton_json_parser.py <path to json files>'
         sys.exit(1)
-    
-    # Empty the data files first
-    open('users.dat', 'w').close()
-    open('items.dat', 'w').close()
-    open('bids.dat', 'w').close()
-    open('categories.dat', 'w').close()
-    
-    # loops over all .json files in the argument
+
     for f in argv[1:]:
         if isJson(f):
             parseJson(f)
             print("Success parsing " + f)
-    
-
-    # Begin Write to Data Files
-    usersFile = open('users.dat', 'a')
-    itemsFile = open('items.dat', 'a')
-    bidsFile = open('bids.dat', 'a')
-    categoriesFile = open('categories.dat', 'a')
-
-    # Write User Entity to users.dat
-    for id, attributes in userEntity.items():
-        line = ''
-        for a, j in attributes.items():
-            line += str(j)+'|'
-        usersFile.write(line[:-1]+'\n')
-
-    # Write Item Entity to items.dat
-    for id, attributes in itemEntity.items():
-        line = ''
-        for a, j in attributes.items():
-            line += str(j)+'|'
-        itemsFile.write(line[:-1]+'\n')
-
-
-    # Write Bid Entity to bids.dat
-    for attributes in bidEntity:
-        line = ''
-        for a, j in attributes.items():
-            line += str(j)+'|'
-        bidsFile.write(line[:-1]+'\n')
-
-    # Write Category Entity to category.dat
-    for category in categoryEntity:
-        line = ''
-        for item in categoryEntity[category]['Items']:
-            line += str(item)+'|'+str(category)+'\n'
-        categoriesFile.write(line)
-
-    usersFile.close()
-    bidsFile.close()
-    itemsFile.close()
-    categoriesFile.close()
+            
+    writeUsers()
+    writeItems()
+    writeBids()
+    writeCategories()
 
 if __name__ == '__main__':
     main(sys.argv)
